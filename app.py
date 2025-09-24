@@ -815,7 +815,7 @@ def main():
             'llama_api_key': "llx-phVffvtXpilg0AkQjsVllzITv9eXIZ3dPvwx8rI1EeEGsuDZ",
             'llama_agent': "Zepto Agent",
             'spreadsheet_id': "1RiZUL_In3Aq-Z3P9gYgwjB959IHNVmnoAZUBFbEzI10",
-            'sheet_range': "zepto po",
+            'sheet_range': "zeptopo",
             'days_back': 30,
             'max_files': 50,
             'skip_existing': True
