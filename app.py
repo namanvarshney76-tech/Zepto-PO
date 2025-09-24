@@ -806,6 +806,7 @@ def main():
     
     if 'pdf_config' not in st.session_state:
         st.session_state.pdf_config = {
+            'drive_folder_id': "1q7lkrJmIjQp5xvTpIXSd1cfSTl_tCECZ",
             'csv_folder_id': "1q7lkrJmIjQp5xvTpIXSd1cfSTl_tCECZ",  # Add your CSV folder ID here
             'llama_api_key': "llx-phVffvtXpilg0AkQjsVllzITv9eXIZ3dPvwx8rI1EeEGsuDZ",
             'llama_agent': "Zepto Agent",
