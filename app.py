@@ -340,7 +340,7 @@ class ZeptoAutomation:
                     mime_type = 'text/csv'
                 
                 # Upload file with message ID prefix
-                prefixed_filename = f"filename"
+                prefixed_filename = f"{filename}"
                 
                 # Check if file already exists
                 query = f"name='{prefixed_filename}' and '{subfolder_id}' in parents and trashed=false"
