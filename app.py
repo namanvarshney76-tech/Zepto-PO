@@ -55,15 +55,6 @@ class StreamlitLogHandler(logging.Handler):
         with self.log_container:
             st.text_area("Real-time Logs", "\n".join(self.logs[-50:]), height=200, key=f"logs_{len(self.logs)}")
 
-def get_column_letter(col_num: int) -> str:
-    """Convert column number to Google Sheets column letter (A, B, ..., Z, AA, AB, ...)"""
-    result = []
-    while col_num > 0:
-        col_num -= 1
-        result.append(chr(65 + col_num % 26))
-        col_num //= 26
-    return ''.join(reversed(result))
-
 class ZeptoAutomation:
     def __init__(self):
         self.gmail_service = None
@@ -481,7 +472,7 @@ class ZeptoAutomation:
                     rows = self._process_extracted_data(extracted_data, file)
                     
                     if rows:
-                        self._save_to_sheets(config['spreadsheet_id'], config['sheet_range'], rows, first_file=(i == 0))
+                        self._save_to_sheets(config['spreadsheet_id'], config['sheet_range'], rows)
                         rows_added += len(rows)
                         processed_count += 1
                         st.success(f"Processed {file['name']} - added {len(rows)} rows")
@@ -545,7 +536,7 @@ class ZeptoAutomation:
                     rows = self._process_csv_data(csv_data, file)
                     
                     if rows:
-                        self._save_to_sheets(config['spreadsheet_id'], config['sheet_range'], rows, first_file=(i == 0))
+                        self._save_to_sheets(config['spreadsheet_id'], config['sheet_range'], rows)
                         rows_added += len(rows)
                         processed_count += 1
                         st.success(f"Processed {file['name']} - added {len(rows)} rows")
@@ -572,7 +563,7 @@ class ZeptoAutomation:
         try:
             result = self.sheets_service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id,
-                range=f"'{sheet_range}'",
+                range=sheet_range,
                 majorDimension="ROWS"
             ).execute()
             
@@ -707,22 +698,32 @@ class ZeptoAutomation:
                 return data[key]
         return default
     
-    def _save_to_sheets(self, spreadsheet_id: str, sheet_name: str, rows: List[Dict], first_file: bool = False):
-        """Save data to Google Sheets with header management for first file only"""
+    def _save_to_sheets(self, spreadsheet_id: str, sheet_name: str, rows: List[Dict]):
+        """Save data to Google Sheets with proper header management (append only, no replacement)"""
         try:
             if not rows:
                 return
             
-            # Get existing headers
+            # Get existing headers and data
             existing_headers = self._get_sheet_headers(spreadsheet_id, sheet_name)
             
-            if not existing_headers and first_file:
-                # Set headers from the first file
-                all_headers = list(rows[0].keys())
-                self._update_headers(spreadsheet_id, sheet_name, all_headers)
+            # Get all unique headers from new data
+            new_headers = list(set().union(*(row.keys() for row in rows)))
+            
+            # Combine headers (existing + new unique ones)
+            if existing_headers:
+                all_headers = existing_headers.copy()
+                for header in new_headers:
+                    if header not in all_headers:
+                        all_headers.append(header)
+                
+                # Update headers if new ones were added
+                if len(all_headers) > len(existing_headers):
+                    self._update_headers(spreadsheet_id, sheet_name, all_headers)
             else:
-                # Use existing headers for subsequent files
-                all_headers = existing_headers if existing_headers else list(rows[0].keys())
+                # No existing headers, create them
+                all_headers = new_headers
+                self._update_headers(spreadsheet_id, sheet_name, all_headers)
             
             # Append new rows
             values = [[row.get(h, "") for h in all_headers] for row in rows]
@@ -734,12 +735,9 @@ class ZeptoAutomation:
     def _get_sheet_headers(self, spreadsheet_id: str, sheet_name: str) -> List[str]:
         """Get existing headers from Google Sheet"""
         try:
-            # Set a large enough range to cover potential columns
-            max_col = 1000  # Adjust if needed
-            sheet_range = f"'{sheet_name}'!A1:{get_column_letter(max_col)}1"
             result = self.sheets_service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id,
-                range=sheet_range,
+                range=f"{sheet_name}!A1:Z1",
                 majorDimension="ROWS"
             ).execute()
             values = result.get('values', [])
@@ -752,11 +750,9 @@ class ZeptoAutomation:
         """Update the header row with new columns"""
         try:
             body = {'values': [headers]}
-            col_letter = get_column_letter(len(headers))
-            sheet_range = f"'{sheet_name}'!A1:{col_letter}1"
             result = self.sheets_service.spreadsheets().values().update(
                 spreadsheetId=spreadsheet_id,
-                range=sheet_range,
+                range=f"{sheet_name}!A1:{chr(64 + len(headers))}1",
                 valueInputOption='USER_ENTERED',
                 body=body
             ).execute()
@@ -776,7 +772,7 @@ class ZeptoAutomation:
                 body = {'values': values}
                 result = self.sheets_service.spreadsheets().values().append(
                     spreadsheetId=spreadsheet_id, 
-                    range=f"'{range_name}'",
+                    range=range_name,
                     valueInputOption='USER_ENTERED', 
                     body=body
                 ).execute()
@@ -810,12 +806,12 @@ def main():
     
     if 'pdf_config' not in st.session_state:
         st.session_state.pdf_config = {
-            'drive_folder_id': "18LRA2eMtHVPXQ2lQa5tuaYk9CAYNVJsW",
+            'drive_folder_id': "1q7lkrJmIjQp5xvTpIXSd1cfSTl_tCECZ",
             'csv_folder_id': "1q7lkrJmIjQp5xvTpIXSd1cfSTl_tCECZ",  # Add your CSV folder ID here
             'llama_api_key': "llx-phVffvtXpilg0AkQjsVllzITv9eXIZ3dPvwx8rI1EeEGsuDZ",
             'llama_agent': "Zepto Agent",
             'spreadsheet_id': "1RiZUL_In3Aq-Z3P9gYgwjB959IHNVmnoAZUBFbEzI10",
-            'sheet_range': "zepto po",
+            'sheet_range': "zeptopo",
             'days_back': 30,
             'max_files': 50,
             'skip_existing': True
