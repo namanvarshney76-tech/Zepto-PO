@@ -472,7 +472,7 @@ class ZeptoAutomation:
                     rows = self._process_extracted_data(extracted_data, file)
                     
                     if rows:
-                        self._save_to_sheets(config['spreadsheet_id'], config['sheet_range'], rows)
+                        self._save_to_sheets(config['spreadsheet_id'], config['sheet_range'], rows, first_file=(i == 0))
                         rows_added += len(rows)
                         processed_count += 1
                         st.success(f"Processed {file['name']} - added {len(rows)} rows")
@@ -536,7 +536,7 @@ class ZeptoAutomation:
                     rows = self._process_csv_data(csv_data, file)
                     
                     if rows:
-                        self._save_to_sheets(config['spreadsheet_id'], config['sheet_range'], rows)
+                        self._save_to_sheets(config['spreadsheet_id'], config['sheet_range'], rows, first_file=(i == 0))
                         rows_added += len(rows)
                         processed_count += 1
                         st.success(f"Processed {file['name']} - added {len(rows)} rows")
@@ -698,32 +698,22 @@ class ZeptoAutomation:
                 return data[key]
         return default
     
-    def _save_to_sheets(self, spreadsheet_id: str, sheet_name: str, rows: List[Dict]):
-        """Save data to Google Sheets with proper header management (append only, no replacement)"""
+    def _save_to_sheets(self, spreadsheet_id: str, sheet_name: str, rows: List[Dict], first_file: bool = False):
+        """Save data to Google Sheets with header management for first file only"""
         try:
             if not rows:
                 return
             
-            # Get existing headers and data
+            # Get existing headers
             existing_headers = self._get_sheet_headers(spreadsheet_id, sheet_name)
             
-            # Get all unique headers from new data
-            new_headers = list(set().union(*(row.keys() for row in rows)))
-            
-            # Combine headers (existing + new unique ones)
-            if existing_headers:
-                all_headers = existing_headers.copy()
-                for header in new_headers:
-                    if header not in all_headers:
-                        all_headers.append(header)
-                
-                # Update headers if new ones were added
-                if len(all_headers) > len(existing_headers):
-                    self._update_headers(spreadsheet_id, sheet_name, all_headers)
-            else:
-                # No existing headers, create them
-                all_headers = new_headers
+            if not existing_headers and first_file:
+                # Set headers from the first file
+                all_headers = list(rows[0].keys())
                 self._update_headers(spreadsheet_id, sheet_name, all_headers)
+            else:
+                # Use existing headers for subsequent files
+                all_headers = existing_headers if existing_headers else list(rows[0].keys())
             
             # Append new rows
             values = [[row.get(h, "") for h in all_headers] for row in rows]
@@ -806,8 +796,8 @@ def main():
     
     if 'pdf_config' not in st.session_state:
         st.session_state.pdf_config = {
-            'drive_folder_id': "1q7lkrJmIjQp5xvTpIXSd1cfSTl_tCECZ",
-            'csv_folder_id': "1q7lkrJmIjQp5xvTpIXSd1cfSTl_tCECZ",  # Add your CSV folder ID here
+            'drive_folder_id': "18LRA2eMtHVPXQ2lQa5tuaYk9CAYNVJsW",
+            'csv_folder_id': "1RiZUL_In3Aq-Z3P9gYgwjB959IHNVmnoAZUBFbEzI10",  # Add your CSV folder ID here
             'llama_api_key': "llx-phVffvtXpilg0AkQjsVllzITv9eXIZ3dPvwx8rI1EeEGsuDZ",
             'llama_agent': "Zepto Agent",
             'spreadsheet_id': "1RiZUL_In3Aq-Z3P9gYgwjB959IHNVmnoAZUBFbEzI10",
