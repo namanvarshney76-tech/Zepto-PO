@@ -572,7 +572,7 @@ class ZeptoAutomation:
         try:
             result = self.sheets_service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id,
-                range=sheet_range,
+                range=f"'{sheet_range}'",
                 majorDimension="ROWS"
             ).execute()
             
@@ -776,7 +776,7 @@ class ZeptoAutomation:
                 body = {'values': values}
                 result = self.sheets_service.spreadsheets().values().append(
                     spreadsheetId=spreadsheet_id, 
-                    range=range_name,
+                    range=f"'{range_name}'",
                     valueInputOption='USER_ENTERED', 
                     body=body
                 ).execute()
