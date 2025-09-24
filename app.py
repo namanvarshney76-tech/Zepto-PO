@@ -35,8 +35,8 @@ warnings.filterwarnings("ignore")
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="Blinkit HOT Automation",
-    page_icon="🔥",
+    page_title="Zepto PO Automation",
+    page_icon="🛢️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
