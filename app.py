@@ -98,7 +98,7 @@ class ZeptoAutomation:
                 flow = Flow.from_client_config(
                     client_config=creds_data,
                     scopes=combined_scopes,
-                    redirect_uri="https://zepto-grn-auto.streamlit.app/"  # Update this with your actual URL
+                    redirect_uri="https://zeptopo.streamlit.app/"  # Update this with your actual URL
                 )
                 
                 # Generate authorization URL
