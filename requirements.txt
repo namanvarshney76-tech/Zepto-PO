@@ -1,15 +1,11 @@
-streamlit
+google-api-python-client
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
-google-api-python-client
-llama-cloud-services
-
-# Database support (install as needed)
-psycopg2-binary  # For PostgreSQL support
-mysql-connector-python  # For MySQL support
-pandas  # For data handling and display
-
-# Optional: For advanced database features
-sqlalchemy  # Object-relational mapping (optional)
-alembic  # Database migrations (optional)
+pandas
+lxml
+xlrd
+openpyxl
+pyxlsb
+xlrd2
+xlwings
