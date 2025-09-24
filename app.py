@@ -330,7 +330,7 @@ class ZeptoAutomation:
                 pdfs_folder_id = self._create_drive_folder("PDFs", grn_folder_id)
                 
                 # Upload file with message ID prefix
-                prefixed_filename = f"{message_id}_{filename}"
+                prefixed_filename = f"filename"
                 
                 # Check if file already exists
                 query = f"name='{prefixed_filename}' and '{pdfs_folder_id}' in parents and trashed=false"
