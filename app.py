@@ -13,9 +13,10 @@ import time
 import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
-from io import StringIO
+from io import StringIO, BytesIO
 import threading
 import queue
+import csv
 
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -315,6 +316,10 @@ class ZeptoAutomation:
                 if filename.lower() != config['attachment_filter'].lower():
                     return 0
             
+            extension = filename.lower().split('.')[-1] if '.' in filename else ''
+            if extension not in ['pdf', 'csv']:
+                return 0
+            
             try:
                 # Get attachment data
                 attachment_id = payload["body"].get("attachmentId")
@@ -324,16 +329,21 @@ class ZeptoAutomation:
                 
                 file_data = base64.urlsafe_b64decode(att["data"].encode("UTF-8"))
                 
-                # Create the exact folder structure: Gmail_Attachments -> procurement@zeptonow.com -> grn -> PDFs
+                # Create the exact folder structure: Gmail_Attachments -> procurement@zeptonow.com -> grn -> PDFs or CSVs
                 sender_folder_id = self._create_drive_folder("procurement@zeptonow.com", base_folder_id)
                 grn_folder_id = self._create_drive_folder("grn", sender_folder_id)
-                pdfs_folder_id = self._create_drive_folder("PDFs", grn_folder_id)
+                if extension == 'pdf':
+                    subfolder_id = self._create_drive_folder("PDFs", grn_folder_id)
+                    mime_type = 'application/pdf'
+                else:
+                    subfolder_id = self._create_drive_folder("CSVs", grn_folder_id)
+                    mime_type = 'text/csv'
                 
                 # Upload file with message ID prefix
-                prefixed_filename = f"filename"
+                prefixed_filename = f"{message_id}_{filename}"
                 
                 # Check if file already exists
-                query = f"name='{prefixed_filename}' and '{pdfs_folder_id}' in parents and trashed=false"
+                query = f"name='{prefixed_filename}' and '{subfolder_id}' in parents and trashed=false"
                 existing = self.drive_service.files().list(q=query, fields='files(id)').execute()
                 files = existing.get('files', [])
                 
@@ -343,10 +353,10 @@ class ZeptoAutomation:
                 
                 file_metadata = {
                     'name': prefixed_filename,
-                    'parents': [pdfs_folder_id]
+                    'parents': [subfolder_id]
                 }
                 
-                media = MediaIoBaseUpload(io.BytesIO(file_data), mimetype='application/octet-stream')
+                media = MediaIoBaseUpload(io.BytesIO(file_data), mimetype=mime_type)
                 
                 file = self.drive_service.files().create(
                     body=file_metadata,
@@ -407,7 +417,7 @@ class ZeptoAutomation:
             status_text.text("Starting PDF workflow...")
             
             # List PDFs
-            pdf_files = self._list_drive_files(config['drive_folder_id'], config['days_back'])
+            pdf_files = self._list_drive_files(config['drive_folder_id'], config['days_back'], mime_type='application/pdf')
             
             if skip_existing:
                 existing_names = self.get_existing_source_files(config['spreadsheet_id'], config['sheet_range'])
@@ -483,6 +493,70 @@ class ZeptoAutomation:
         except Exception as e:
             st.error(f"PDF workflow failed: {str(e)}")
             return {'success': False, 'processed': 0}
+
+    def process_csv_workflow(self, config: dict, progress_bar, status_text, log_container, skip_existing=False, max_files=None):
+        """Process CSV workflow"""
+        try:
+            status_text.text("Starting CSV workflow...")
+            
+            # List CSVs
+            csv_files = self._list_drive_files(config['csv_folder_id'], config['days_back'], mime_type='text/csv')
+            
+            if skip_existing:
+                existing_names = self.get_existing_source_files(config['spreadsheet_id'], config['sheet_range'])
+                csv_files = [f for f in csv_files if f['name'] not in existing_names]
+                st.info(f"After filtering existing, {len(csv_files)} CSVs to process")
+            
+            if max_files is not None:
+                csv_files = csv_files[:max_files]
+                st.info(f"Limited to {max_files} CSVs")
+            
+            progress_bar.progress(25)
+            
+            if not csv_files:
+                st.warning("No CSV files found in folder")
+                return {'success': True, 'processed': 0}
+            
+            status_text.text(f"Found {len(csv_files)} CSVs. Processing...")
+            
+            processed_count = 0
+            rows_added = 0
+            
+            for i, file in enumerate(csv_files):
+                try:
+                    status_text.text(f"Processing CSV {i+1}/{len(csv_files)}: {file['name']}")
+                    
+                    # Download CSV
+                    csv_data = self._download_from_drive(file['id'])
+                    if not csv_data:
+                        st.warning(f"Failed to download {file['name']}")
+                        continue
+                    
+                    # Process CSV data
+                    rows = self._process_csv_data(csv_data, file)
+                    
+                    if rows:
+                        self._save_to_sheets(config['spreadsheet_id'], config['sheet_range'], rows)
+                        rows_added += len(rows)
+                        processed_count += 1
+                        st.success(f"Processed {file['name']} - added {len(rows)} rows")
+                    else:
+                        st.info(f"No data extracted from {file['name']}")
+                    
+                    progress = 25 + (i + 1) / len(csv_files) * 75
+                    progress_bar.progress(int(progress))
+                    
+                except Exception as e:
+                    st.error(f"Failed to process {file['name']}: {str(e)}")
+            
+            progress_bar.progress(100)
+            status_text.text(f"CSV workflow completed! Processed {processed_count} CSVs, added {rows_added} rows")
+            
+            return {'success': True, 'processed': processed_count}
+            
+        except Exception as e:
+            st.error(f"CSV workflow failed: {str(e)}")
+            return {'success': False, 'processed': 0}
     
     def get_existing_source_files(self, spreadsheet_id: str, sheet_range: str) -> set:
         """Get set of existing source_file from Google Sheet"""
@@ -511,13 +585,13 @@ class ZeptoAutomation:
             st.error(f"Failed to get existing file names: {str(e)}")
             return set()
     
-    def _list_drive_files(self, folder_id: str, days_back: int = 7) -> List[Dict]:
-        """List PDF files in Drive folder"""
+    def _list_drive_files(self, folder_id: str, days_back: int = 7, mime_type: str = 'application/pdf') -> List[Dict]:
+        """List files in Drive folder by mime type"""
         try:
             start_datetime = datetime.utcnow() - timedelta(days=days_back)
             start_str = start_datetime.strftime('%Y-%m-%dT00:00:00Z')
             
-            query = f"'{folder_id}' in parents and mimeType='application/pdf' and trashed=false and createdTime > '{start_str}'"
+            query = f"'{folder_id}' in parents and mimeType='{mime_type}' and trashed=false and createdTime > '{start_str}'"
             
             files = []
             page_token = None
@@ -534,7 +608,7 @@ class ZeptoAutomation:
                 if not page_token:
                     break
             
-            st.info(f"Found {len(files)} PDF files in folder")
+            st.info(f"Found {len(files)} files of type {mime_type} in folder")
             return files
             
         except Exception as e:
@@ -600,6 +674,22 @@ class ZeptoAutomation:
             rows.append(cleaned_item)
         
         return rows
+    
+    def _process_csv_data(self, csv_data: bytes, file_info: Dict) -> List[Dict]:
+        """Process CSV data into rows"""
+        try:
+            text = csv_data.decode('utf-8')
+            f = StringIO(text)
+            reader = csv.DictReader(f)
+            rows = [row for row in reader]
+            for row in rows:
+                row["source_file"] = file_info['name']
+                row["processed_date"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                row["drive_file_id"] = file_info['id']
+            return rows
+        except Exception as e:
+            st.error(f"Failed to process CSV data: {str(e)}")
+            return []
     
     def _get_value(self, data, possible_keys, default=""):
         """Return the first found key value from dict."""
@@ -717,6 +807,7 @@ def main():
     if 'pdf_config' not in st.session_state:
         st.session_state.pdf_config = {
             'drive_folder_id': "18LRA2eMtHVPXQ2lQa5tuaYk9CAYNVJsW",
+            'csv_folder_id': "",  # Add your CSV folder ID here
             'llama_api_key': "llx-phVffvtXpilg0AkQjsVllzITv9eXIZ3dPvwx8rI1EeEGsuDZ",
             'llama_agent': "Zepto Agent",
             'spreadsheet_id': "1RiZUL_In3Aq-Z3P9gYgwjB959IHNVmnoAZUBFbEzI10",
@@ -753,21 +844,23 @@ def main():
             st.success("Gmail settings updated!")
     
     with st.sidebar.form("pdf_config_form"):
-        st.subheader("PDF Processing Settings")
+        st.subheader("PDF/CSV Processing Settings")
         pdf_folder = st.text_input("PDF Drive Folder ID", value=st.session_state.pdf_config['drive_folder_id'])
+        csv_folder = st.text_input("CSV Drive Folder ID", value=st.session_state.pdf_config['csv_folder_id'])
         pdf_api_key = st.text_input("LlamaParse API Key", value=st.session_state.pdf_config['llama_api_key'], type="password")
         pdf_agent = st.text_input("LlamaParse Agent", value=st.session_state.pdf_config['llama_agent'])
         pdf_sheet_id = st.text_input("Spreadsheet ID", value=st.session_state.pdf_config['spreadsheet_id'])
         pdf_sheet_range = st.text_input("Sheet Range", value=st.session_state.pdf_config['sheet_range'])
-        pdf_days = st.number_input("PDF Days Back", value=st.session_state.pdf_config['days_back'], min_value=1)
-        pdf_max_files = st.number_input("Max PDFs to Process", value=st.session_state.pdf_config.get('max_files', 50), min_value=1)
+        pdf_days = st.number_input("Days Back", value=st.session_state.pdf_config['days_back'], min_value=1)
+        pdf_max_files = st.number_input("Max Files to Process", value=st.session_state.pdf_config.get('max_files', 50), min_value=1)
         pdf_skip_existing = st.checkbox("Skip Existing Files", value=st.session_state.pdf_config.get('skip_existing', True))
         
-        pdf_submit = st.form_submit_button("Update PDF Settings")
+        pdf_submit = st.form_submit_button("Update PDF/CSV Settings")
         
         if pdf_submit:
             st.session_state.pdf_config = {
                 'drive_folder_id': pdf_folder,
+                'csv_folder_id': csv_folder,
                 'llama_api_key': pdf_api_key,
                 'llama_agent': pdf_agent,
                 'spreadsheet_id': pdf_sheet_id,
@@ -776,7 +869,7 @@ def main():
                 'max_files': pdf_max_files,
                 'skip_existing': pdf_skip_existing
             }
-            st.success("PDF settings updated!")
+            st.success("PDF/CSV settings updated!")
     
     # Add a separator
     st.sidebar.markdown("---")
@@ -785,7 +878,7 @@ def main():
     
     # Main content area - workflow buttons
     st.header("Choose Workflow")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         if st.button("Gmail Workflow Only", use_container_width=True):
@@ -796,6 +889,10 @@ def main():
             st.session_state.workflow = "pdf"
     
     with col3:
+        if st.button("CSV Workflow Only", use_container_width=True):
+            st.session_state.workflow = "csv"
+    
+    with col4:
         if st.button("Combined Workflow", use_container_width=True):
             st.session_state.workflow = "combined"
     
@@ -814,7 +911,7 @@ def main():
             st.json(st.session_state.gmail_config)
         
         with col2:
-            st.subheader("PDF Configuration")
+            st.subheader("PDF/CSV Configuration")
             # Hide API key in display
             display_pdf_config = st.session_state.pdf_config.copy()
             display_pdf_config['llama_api_key'] = "*" * len(display_pdf_config['llama_api_key'])
@@ -867,6 +964,17 @@ def main():
                 else:
                     st.error("PDF workflow failed")
             
+            elif st.session_state.workflow == "csv":
+                result = automation.process_csv_workflow(
+                    st.session_state.pdf_config, main_progress, main_status, log_container,
+                    skip_existing=st.session_state.pdf_config['skip_existing'],
+                    max_files=st.session_state.pdf_config['max_files']
+                )
+                if result['success']:
+                    st.success(f"CSV workflow completed! Processed {result['processed']} CSVs")
+                else:
+                    st.error("CSV workflow failed")
+            
             elif st.session_state.workflow == "combined":
                 st.info("Running combined workflow...")
                 
@@ -891,8 +999,24 @@ def main():
                     )
                     
                     if pdf_result['success']:
-                        st.success(f"Combined workflow completed successfully!")
-                        st.balloons()
+                        st.success(f"PDF step completed! Processed {pdf_result['processed']} PDFs")
+                        
+                        # Small delay
+                        time.sleep(2)
+                        
+                        # Step 3: CSV processing
+                        st.subheader("Step 3: CSV Processing")
+                        csv_result = automation.process_csv_workflow(
+                            st.session_state.pdf_config, main_progress, main_status, log_container,
+                            skip_existing=True,
+                            max_files=st.session_state.pdf_config['max_files']
+                        )
+                        
+                        if csv_result['success']:
+                            st.success(f"Combined workflow completed successfully!")
+                            st.balloons()
+                        else:
+                            st.error("CSV processing step failed")
                     else:
                         st.error("PDF processing step failed")
                 else:
@@ -924,7 +1048,7 @@ def main():
             st.json(st.session_state.gmail_config)
         
         with col2:
-            st.subheader("PDF Configuration")
+            st.subheader("PDF/CSV Configuration")
             display_pdf_config = st.session_state.pdf_config.copy()
             display_pdf_config['llama_api_key'] = "*" * len(display_pdf_config['llama_api_key'])
             st.json(display_pdf_config)
