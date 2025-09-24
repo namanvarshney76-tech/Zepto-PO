@@ -340,7 +340,7 @@ class ZeptoAutomation:
                     mime_type = 'text/csv'
                 
                 # Upload file with message ID prefix
-                prefixed_filename = f"{message_id}_{filename}"
+                prefixed_filename = f"filename"
                 
                 # Check if file already exists
                 query = f"name='{prefixed_filename}' and '{subfolder_id}' in parents and trashed=false"
@@ -806,8 +806,7 @@ def main():
     
     if 'pdf_config' not in st.session_state:
         st.session_state.pdf_config = {
-            'drive_folder_id': "18LRA2eMtHVPXQ2lQa5tuaYk9CAYNVJsW",
-            'csv_folder_id': "",  # Add your CSV folder ID here
+            'csv_folder_id': "1q7lkrJmIjQp5xvTpIXSd1cfSTl_tCECZ",  # Add your CSV folder ID here
             'llama_api_key': "llx-phVffvtXpilg0AkQjsVllzITv9eXIZ3dPvwx8rI1EeEGsuDZ",
             'llama_agent': "Zepto Agent",
             'spreadsheet_id': "1RiZUL_In3Aq-Z3P9gYgwjB959IHNVmnoAZUBFbEzI10",
