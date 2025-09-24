@@ -55,6 +55,15 @@ class StreamlitLogHandler(logging.Handler):
         with self.log_container:
             st.text_area("Real-time Logs", "\n".join(self.logs[-50:]), height=200, key=f"logs_{len(self.logs)}")
 
+def get_column_letter(col_num: int) -> str:
+    """Convert column number to Google Sheets column letter (A, B, ..., Z, AA, AB, ...)"""
+    result = []
+    while col_num > 0:
+        col_num -= 1
+        result.append(chr(65 + col_num % 26))
+        col_num //= 26
+    return ''.join(reversed(result))
+
 class ZeptoAutomation:
     def __init__(self):
         self.gmail_service = None
@@ -725,9 +734,12 @@ class ZeptoAutomation:
     def _get_sheet_headers(self, spreadsheet_id: str, sheet_name: str) -> List[str]:
         """Get existing headers from Google Sheet"""
         try:
+            # Set a large enough range to cover potential columns
+            max_col = 1000  # Adjust if needed
+            sheet_range = f"'{sheet_name}'!A1:{get_column_letter(max_col)}1"
             result = self.sheets_service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id,
-                range=f"{sheet_name}!A1:Z1",
+                range=sheet_range,
                 majorDimension="ROWS"
             ).execute()
             values = result.get('values', [])
@@ -740,9 +752,11 @@ class ZeptoAutomation:
         """Update the header row with new columns"""
         try:
             body = {'values': [headers]}
+            col_letter = get_column_letter(len(headers))
+            sheet_range = f"'{sheet_name}'!A1:{col_letter}1"
             result = self.sheets_service.spreadsheets().values().update(
                 spreadsheetId=spreadsheet_id,
-                range=f"{sheet_name}!A1:{chr(64 + len(headers))}1",
+                range=sheet_range,
                 valueInputOption='USER_ENTERED',
                 body=body
             ).execute()
@@ -797,11 +811,11 @@ def main():
     if 'pdf_config' not in st.session_state:
         st.session_state.pdf_config = {
             'drive_folder_id': "18LRA2eMtHVPXQ2lQa5tuaYk9CAYNVJsW",
-            'csv_folder_id': "1q7lkrJmIjQp5xvTpIXSd1cfSTl_tCECZ",  # Add your CSV folder ID here
+            'csv_folder_id': "1RiZUL_In3Aq-Z3P9gYgwjB959IHNVmnoAZUBFbEzI10",  # Add your CSV folder ID here
             'llama_api_key': "llx-phVffvtXpilg0AkQjsVllzITv9eXIZ3dPvwx8rI1EeEGsuDZ",
             'llama_agent': "Zepto Agent",
             'spreadsheet_id': "1RiZUL_In3Aq-Z3P9gYgwjB959IHNVmnoAZUBFbEzI10",
-            'sheet_range': "zeptopo",
+            'sheet_range': "zepto po",
             'days_back': 30,
             'max_files': 50,
             'skip_existing': True
