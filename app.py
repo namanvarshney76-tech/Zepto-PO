@@ -849,9 +849,9 @@ def create_streamlit_ui():
         }
         
         excel_config = {
-            'excel_folder_id': '1KM0UGCN4_Z3XLD7nZTMpyM_bKVcsBCOZ',
-            'spreadsheet_id': '10wyfALowemBcEFiZP9Tyy08npl_44FpHonO3rKARmRY',
-            'sheet_name': 'hotgrn',
+            'excel_folder_id': '1q7lkrJmIjQp5xvTpIXSd1cfSTl_tCECZ',
+            'spreadsheet_id': '1RiZUL_In3Aq-Z3P9gYgwjB959IHNVmnoAZUBFbEzI10',
+            'sheet_name': 'zeptopo',
             'header_row': 0,
             'days_back': days_back,
             'max_results': max_results
