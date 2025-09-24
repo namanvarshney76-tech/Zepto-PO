@@ -706,12 +706,12 @@ def main():
     # Initialize session state for configuration
     if 'gmail_config' not in st.session_state:
         st.session_state.gmail_config = {
-            'sender': "procurement@zeptonow.com",
-            'search_term': "grn",
+            'sender': "po_fulfilment@zeptonow.com",
+            'search_term': "Purchase Order",
             'days_back': 30,
             'max_results': 1000,
             'attachment_filter': "",
-            'gdrive_folder_id': "1UztLKOp-job-BeKqcLV16dPLBlF1cV19"
+            'gdrive_folder_id': "15RKLg1uNf_wFcUxjIdZ0xDt6Jz7jArbm"
         }
     
     if 'pdf_config' not in st.session_state:
