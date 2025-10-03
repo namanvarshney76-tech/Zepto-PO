@@ -693,7 +693,7 @@ def main():
     # Initialize session state for configuration
     if 'gmail_config' not in st.session_state:
         st.session_state.gmail_config = {
-            'sender': " ",
+            'sender': "",
             'search_term': "Purchase Order for MIMANSA INDUSTRIES PVT LTD",
             'days_back': 2,
             'max_results': 1000,
