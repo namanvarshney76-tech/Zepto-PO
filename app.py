@@ -569,11 +569,28 @@ class ZeptoAutomation:
         if "items" in extracted_data:
             items = extracted_data["items"]
             for item in items:
+                item["vendor_name"] = self._get_value(extracted_data.get("vendor_details", {}), ["name"])
+                item["vendor_address"] = self._get_value(extracted_data.get("vendor_details", {}), ["address"])
+                item["vendor_postal_code"] = self._get_value(extracted_data.get("vendor_details", {}), ["postal_code"])
+                item["vendor_gstin"] = self._get_value(extracted_data.get("vendor_details", {}), ["gstin"])
+                item["vendor_pan"] = self._get_value(extracted_data.get("vendor_details", {}), ["pan"])
                 item["po_number"] = self._get_value(extracted_data.get("po_details", {}), ["po_number"])
                 item["po_date"] = self._get_value(extracted_data.get("po_details", {}), ["po_date"])
-                item["vendor_name"] = self._get_value(extracted_data.get("vendor_details", {}), ["name"])
-                item["shipping_address"] = self._get_value(extracted_data.get("shipping_address", {}), ["address"])
+                item["po_release_date"] = self._get_value(extracted_data.get("po_details", {}), ["po_release_date"])
+                item["payment_terms"] = self._get_value(extracted_data.get("po_details", {}), ["payment_terms"])
+                item["expected_delivery_date"] = self._get_value(extracted_data.get("po_details", {}), ["expected_delivery_date"])
+                item["po_expiry_date"] = self._get_value(extracted_data.get("po_details", {}), ["po_expiry_date"])
+                item["billing_name"] = self._get_value(extracted_data.get("billing_address", {}), ["name"])
                 item["billing_address"] = self._get_value(extracted_data.get("billing_address", {}), ["address"])
+                item["billing_gstin"] = self._get_value(extracted_data.get("billing_address", {}), ["gstin"])
+                item["billing_pan"] = self._get_value(extracted_data.get("billing_address", {}), ["pan"])
+                item["shipping_name"] = self._get_value(extracted_data.get("shipping_address", {}), ["name"])
+                item["shipping_address"] = self._get_value(extracted_data.get("shipping_address", {}), ["address"])
+                item["shipping_gstin"] = self._get_value(extracted_data.get("shipping_address", {}), ["gstin"])
+                item["shipping_pan"] = self._get_value(extracted_data.get("shipping_address", {}), ["pan"])
+                item["total_amount_inr"] = extracted_data.get("total_amount_inr")
+                item["grand_total_inr"] = extracted_data.get("grand_total_inr")
+                item["amount_in_words"] = extracted_data.get("amount_in_words")
                 item["source_file"] = file_info['name']
                 item["processed_date"] = time.strftime("%Y-%m-%d %H:%M:%S")
                 item["drive_file_id"] = file_info['id']
