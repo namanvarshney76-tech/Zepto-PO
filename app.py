@@ -800,9 +800,9 @@ def main():
     # Initialize session state for configuration
     if 'gmail_config' not in st.session_state:
         st.session_state.gmail_config = {
-            'sender': "po_fulfilment@zeptonow.com",
-            'search_term': "Purchase Order",
-            'days_back': 30,
+            'sender': " ",
+            'search_term': "Purchase Order for MIMANSA INDUSTRIES PVT LTD",
+            'days_back': 2,
             'max_results': 1000,
             'attachment_filter': "",
             'gdrive_folder_id': "15RKLg1uNf_wFcUxjIdZ0xDt6Jz7jArbm"
@@ -810,14 +810,14 @@ def main():
     
     if 'pdf_config' not in st.session_state:
         st.session_state.pdf_config = {
-            'drive_folder_id': "18LRA2eMtHVPXQ2lQa5tuaYk9CAYNVJsW",
+            'drive_folder_id': "1OBcZkYrCDL4N_VTKo0GXblUYXykQIzZz",
             'csv_folder_id': "1q7lkrJmIjQp5xvTpIXSd1cfSTl_tCECZ",  # Add your CSV folder ID here
-            'llama_api_key': "llx-phVffvtXpilg0AkQjsVllzITv9eXIZ3dPvwx8rI1EeEGsuDZ",
-            'llama_agent': "Zepto Agent",
+            'llama_api_key': "llx-x1fOYCoqPXQ1PU6BUPEoaKBcRGJXboH6U0eBREkrDxHBewq9",
+            'llama_agent': "Zepto PO agent",
             'spreadsheet_id': "1RiZUL_In3Aq-Z3P9gYgwjB959IHNVmnoAZUBFbEzI10",
             'sheet_range': "zeptopo",
-            'days_back': 30,
-            'max_files': 50,
+            'days_back': 2,
+            'max_files': 1000,
             'skip_existing': True
         }
     
