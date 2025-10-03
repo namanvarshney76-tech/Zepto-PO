@@ -612,6 +612,16 @@ class ZeptoAutomation:
                 return data[key]
         return default
     
+    def get_column_letter(self, col_num):
+        if col_num < 1:
+            return ''
+        result = ''
+        while col_num > 0:
+            col_num -= 1
+            result = chr(65 + (col_num % 26)) + result
+            col_num //= 26
+        return result
+    
     def _save_to_sheets(self, spreadsheet_id: str, sheet_name: str, rows: List[Dict]):
         """Save data to Google Sheets with proper header management (append only, no replacement)"""
         try:
@@ -651,7 +661,7 @@ class ZeptoAutomation:
         try:
             result = self.sheets_service.spreadsheets().values().get(
                 spreadsheetId=spreadsheet_id,
-                range=f"{sheet_name}!A1:Z1",
+                range=f"{sheet_name}!1:1",
                 majorDimension="ROWS"
             ).execute()
             values = result.get('values', [])
@@ -663,10 +673,11 @@ class ZeptoAutomation:
     def _update_headers(self, spreadsheet_id: str, sheet_name: str, headers: List[str]) -> bool:
         """Update the header row with new columns"""
         try:
+            last_col = self.get_column_letter(len(headers))
             body = {'values': [headers]}
             result = self.sheets_service.spreadsheets().values().update(
                 spreadsheetId=spreadsheet_id,
-                range=f"{sheet_name}!A1:{chr(64 + len(headers))}1",
+                range=f"{sheet_name}!A1:{last_col}1",
                 valueInputOption='USER_ENTERED',
                 body=body
             ).execute()
