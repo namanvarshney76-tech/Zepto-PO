@@ -3,6 +3,7 @@ google-auth
 google-auth-oauthlib
 google-auth-httplib2
 pandas
+llama-cloud-services
 lxml
 xlrd
 openpyxl
